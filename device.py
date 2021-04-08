@@ -35,7 +35,7 @@ class Device:
         self.node = node
         self.vars = list()
 
-    def send(self, device):
+    def send(self, device=None):
         return [var.send() for var in self.vars]
 
     def receive(self, device, message):

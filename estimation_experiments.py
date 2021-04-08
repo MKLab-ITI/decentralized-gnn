@@ -11,7 +11,7 @@ def onehot(label, num_classes):
     return np.array([1. if label is not None and label == i else 0. for i in range(num_classes)])
 
 # create data
-G, features, labels, training, validation, test = importer.load("cora", radius=4)
+G, features, labels, training, validation, test = importer.load("cora")
 training, validation = validation, training
 num_classes = len(set(labels.values()))
 num_features = len(list(features.values())[0])
@@ -36,10 +36,11 @@ class PropagationDevice(Device):
         for decentralized_var, model_var in zip(self.vars[2:], self.f.variables):
             model_var.value = decentralized_var.value
         if self.is_training_node:
-            for _ in range(5):
+            for _ in range(40):
                 self.f(self.features, is_training=True)
                 self.f.backpropagate(self.labels)
                 for features, synthetic_predictions in self.synthetic.values():
+                    self.f(features, is_training=True)
                     self.f.backpropagate(synthetic_predictions)
                 self.f.learner_end_batch()
 
@@ -66,6 +67,7 @@ class PropagationDevice(Device):
         self.update_predictor()
 
 
+accuracies = list()
 devices = {u: PropagationDevice(u, MLP(num_features, num_classes), features[u], onehot_labels[u] if u in training else onehot_labels[u]) for u in G}
 for epoch in range(100):
     messages = list()
@@ -76,4 +78,8 @@ for epoch in range(100):
             message = devices[v].receive(devices[u], message)
             messages.append(len(pickle.dumps(message)))
             message = devices[u].ack(devices[v], message)
-    print("Epoch", epoch, "Accuracy", sum(1. if devices[u].predict() == labels[u] else 0 for u in test)/len(test), "message size", sum(messages)/float(len(messages)))
+    accuracy = sum(1. if devices[u].predict() == labels[u] else 0 for u in test) / len(test)
+    print("Epoch", epoch, "Accuracy", accuracy, "message size", sum(messages) / float(len(messages)))
+    accuracies.append()
+print(accuracies)
+

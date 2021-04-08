@@ -10,7 +10,7 @@ def onehot(label, num_classes):
     return np.array([1. if label is not None and label == i else 0. for i in range(num_classes)])
 
 # create data
-G, features, labels, training, validation, test = importer.load("cora", radius=4)
+G, features, labels, training, validation, test = importer.load("cora")
 training, validation = validation, training
 num_classes = len(set(labels.values()))
 onehot_labels = {u: onehot(labels[u] if u in training else None, num_classes) for u in G}
