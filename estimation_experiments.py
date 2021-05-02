@@ -11,7 +11,7 @@ def onehot(label, num_classes):
     return np.array([1. if label is not None and label == i else 0. for i in range(num_classes)])
 
 # create data
-G, features, labels, training, validation, test = importer.load("cora")
+G, features, labels, training, validation, test = importer.load("pubmed")
 training, validation = validation, training
 num_classes = len(set(labels.values()))
 num_features = len(list(features.values())[0])
@@ -50,7 +50,8 @@ class PropagationDevice(Device):
         self.vars[0].update()
 
     def synthesize(self):
-        return self.features, self.ML_predictions#onehot(np.argmax(self.ML_predictions), num_classes)
+        #return self.features, self.ML_predictions
+        return self.features, onehot(np.argmax(self.ML_predictions), num_classes)
 
     def predict(self):
         return np.argmax(self.vars[1].value)
@@ -80,6 +81,6 @@ for epoch in range(100):
             message = devices[u].ack(devices[v], message)
     accuracy = sum(1. if devices[u].predict() == labels[u] else 0 for u in test) / len(test)
     print("Epoch", epoch, "Accuracy", accuracy, "message size", sum(messages) / float(len(messages)))
-    accuracies.append()
-print(accuracies)
+    accuracies.append(accuracy)
+print("pubmed_dec_gnn", "accuracies)
 

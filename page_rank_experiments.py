@@ -10,7 +10,7 @@ def onehot(label, num_classes):
     return np.array([1. if label is not None and label == i else 0. for i in range(num_classes)])
 
 # create data
-G, features, labels, training, validation, test = importer.load("cora")
+G, features, labels, training, validation, test = importer.load("pubmed")
 training, validation = validation, training
 num_classes = len(set(labels.values()))
 onehot_labels = {u: onehot(labels[u] if u in training else None, num_classes) for u in G}
@@ -68,8 +68,9 @@ with open('mlp.pickle', 'rb') as file:
     print("Test Accuracy", sum(1. if np.argmax(f(features[u])) == labels[u] else 0 for u in test)/len(test))
 
 
+accuracies = list()
 devices = {u: PropagationDevice(u, f(features[u]), onehot_labels[u] if u in training else onehot_labels[u]) for u in G}
-for epoch in range(300):
+for epoch in range(60):
     messages = list()
     for u, v in G.edges():
         if random() <= 0.1:
@@ -78,4 +79,7 @@ for epoch in range(300):
             message = devices[v].receive(devices[u], message)
             messages.append(len(pickle.dumps(message)))
             message = devices[u].ack(devices[v], message)
-    print("Epoch", epoch, "Accuracy", sum(1. if devices[u].predict() == labels[u] else 0 for u in test)/len(test), "message size", sum(messages)/float(len(messages)))
+    accuracy = sum(1. if devices[u].predict() == labels[u] else 0 for u in test) / len(test)
+    print("Epoch", epoch, "Accuracy", accuracy, "message size", sum(messages) / float(len(messages)))
+    accuracies.append(accuracy)
+print("pubmed_gnn =", accuracies, ";")
