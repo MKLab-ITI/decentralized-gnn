@@ -6,8 +6,8 @@ from tqdm import tqdm
 import pickle
 from random import choice
 
-dataset = "pubmed"
-scheme = "gossip"
+dataset = "cora"
+scheme = "pretrained"
 
 # load data
 G, features, labels, training, validation, test = importer.load(dataset)
@@ -26,6 +26,8 @@ elif "pretrained" in scheme:
     from predict import train_or_load_MLP
     f = train_or_load_MLP(dataset, features, onehot_labels, num_classes, training, validation, test)
     devices = {u: gossip.PageRankDevice(u, f(features[u]), onehot_labels[u] if u in training else onehot_labels[u]) for u in G}
+elif "pagerank" in scheme:
+    devices = {u: gossip.PageRankDevice(u, onehot_labels[u], onehot_labels[u] if u in training else onehot_labels[u]) for u in G}
 else:
     raise Exception("Invalid scheme")
 

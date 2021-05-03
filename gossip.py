@@ -8,7 +8,8 @@ def onehot(label, num_classes):
 
 class PageRankDevice(Device):
     def __init__(self, node, ML_predictions, labels):
-        super().__init__(node)
+        super().__init__()
+        self.node = node
         self.is_training_node = labels.sum() != 0
         self.labels = labels
         self.ML_predictions = ML_predictions
@@ -25,7 +26,7 @@ class PageRankDevice(Device):
         super().ack(device, message)
 
 
-def GossipDevice(Device):
+class GossipDevice(Device):
     def __init__(self, node, f, features, labels):
         super().__init__()
         self.node = node
@@ -34,6 +35,7 @@ def GossipDevice(Device):
         self.features = features
         self.vars.append(DecentralizedVariable(0, "FDiff", balance=1))
         self.vars.append(DecentralizedVariable(labels))
+        self.is_training_node = labels.sum() != 0
         for model_var in self.f.variables:
             self.vars.append(DecentralizedVariable(model_var.value))
         self.update_predictor()
