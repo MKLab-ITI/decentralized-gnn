@@ -1,9 +1,8 @@
-import numpy as np
-
 class DecentralizedVariable:
-    def __init__(self, value, update_rule = "PPR", balance=0.5):
+    def __init__(self, value, update_rule="PPR", balance=0.5):
         self.neighbors = dict()
-        self.set(value)
+        self.value = None
+        self.personalization = None
         self.balance = balance
         if update_rule=="PPR":
             self.update_rule = lambda n,p: 0.9*n+0.1*p
@@ -11,6 +10,7 @@ class DecentralizedVariable:
             self.update_rule = lambda n,p: n if p.sum() == 0 else p
         else:
             self.update_rule = update_rule
+        self.set(value)
 
     def set(self, value):
         self.neighbors[self] = value
@@ -31,8 +31,7 @@ class DecentralizedVariable:
 
 
 class Device:
-    def __init__(self, node):
-        self.node = node
+    def __init__(self):
         self.vars = list()
 
     def send(self, device=None):

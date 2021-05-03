@@ -1,6 +1,6 @@
 import numpy as np
 import inspect
-from optimizers import Variable, Adam, BatchOptimizer
+from .optimizers import Variable, Adam, BatchOptimizer
 
 
 class Derivable(object):
