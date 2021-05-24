@@ -48,9 +48,9 @@ class GossipDevice(Device):
                 self.f(self.features, is_training=True)
                 self.f.backpropagate(self.labels)
             self.f.learner_end_batch()
-            for decentralized_var, model_var in zip(self.vars[2:], self.f.variables):
-                decentralized_var.set(model_var.value)
-                decentralized_var.update()
+        for decentralized_var, model_var in zip(self.vars[2:], self.f.variables):
+            decentralized_var.set(model_var.value)
+            decentralized_var.update()
         self.ML_predictions = self.f(self.features)
         errors = self.labels - self.ML_predictions if self.is_training_node else self.labels
         self.vars[0].set(errors)
@@ -84,14 +84,14 @@ class EstimationDevice(Device):
     def update_predictor(self):
         for decentralized_var, model_var in zip(self.vars[2:], self.f.variables):
             model_var.value = decentralized_var.value
-        if self.is_training_node:
-            for _ in range(40):
+        for _ in range(40):
+            if self.is_training_node:
                 self.f(self.features, is_training=True)
                 self.f.backpropagate(self.labels)
-                for features, synthetic_predictions in self.synthetic.values():
-                    self.f(features, is_training=True)
-                    self.f.backpropagate(synthetic_predictions)
-                self.f.learner_end_batch()
+            for features, synthetic_predictions in self.synthetic.values():
+                self.f(features, is_training=True)
+                self.f.backpropagate(synthetic_predictions)
+            self.f.learner_end_batch()
 
         self.ML_predictions = self.f(self.features)
         errors = self.labels-self.ML_predictions if self.is_training_node else self.labels
@@ -99,10 +99,11 @@ class EstimationDevice(Device):
         self.vars[0].update()
 
     def synthesize(self):
-        #return self.features, self.ML_predictions
-        return self.features, onehot(np.argmax(self.ML_predictions), num_classes)
+        return self.features, onehot(np.argmax(self.ML_predictions), self.ML_predictions.shape[0])
 
-    def predict(self):
+    def predict(self, propagation=True):
+        if not propagation:
+            return np.argmax(self.ML_predictions)
         return np.argmax(self.vars[1].value)
 
     def send(self, device):

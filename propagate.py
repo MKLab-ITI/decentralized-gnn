@@ -1,5 +1,5 @@
 class DecentralizedVariable:
-    def __init__(self, value, update_rule="PPR", balance=0.5):
+    def __init__(self, value, update_rule="PPR", balance=0.5, smooth=False):
         self.neighbors = dict()
         self.value = None
         self.personalization = None
@@ -8,8 +8,11 @@ class DecentralizedVariable:
             self.update_rule = lambda n,p: 0.9*n+0.1*p
         elif update_rule=="FDiff":
             self.update_rule = lambda n,p: n if p.sum() == 0 else p
+        elif update_rule=="AVG":
+            self.update_rule = lambda n,p: (n*len(self.neighbors)**(1-self.balance)+p) / (len(self.neighbors)+1)**(1-self.balance)
         else:
             self.update_rule = update_rule
+        self.smooth = True
         self.set(value)
 
     def set(self, value):
@@ -24,6 +27,8 @@ class DecentralizedVariable:
         return self.value / len(self.neighbors)**self.balance
 
     def update(self):
+        if self.smooth:
+            self.personalization = self.value
         aggregate = 0
         for value in self.neighbors.values():
             aggregate = aggregate + value

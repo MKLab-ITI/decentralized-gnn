@@ -27,10 +27,10 @@ def train_or_load_MLP(name, features, onehot_labels, num_classes, training, vali
                 interest -= 1
                 if interest == 0:
                     break
-        with open('mlp.pickle', 'wb') as file:
+        with open('data/'+name+'model.pickle', 'wb') as file:
             pickle.dump(best_vars, file, protocol=pickle.HIGHEST_PROTOCOL)
 
-    with open('mlp.pickle', 'rb') as file:
+    with open('data/'+name+'model.pickle', 'rb') as file:
         best_vars = pickle.load(file)
         f.load(best_vars)
         print("Test Accuracy", sum(1. if np.argmax(f(features[u])) == np.argmax(onehot_labels[u]) else 0 for u in test)/len(test))
