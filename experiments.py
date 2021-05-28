@@ -3,18 +3,14 @@ import gossip
 from learning.nn import MLP
 from random import random
 from tqdm import tqdm
-import pickle
 from random import choice
-import threading, time
 
-dataset = "pubmed"
+dataset = "cora"
 scheme = "synth"
 
 # load data
 G, features, labels, training, validation, test = importer.load(dataset)
 training, validation = validation, training
-#test = training
-#training = list(set(range(len(labels)))-set(training))#
 num_classes = len(set(labels.values()))
 num_features = len(list(features.values())[0])
 onehot_labels = {u: gossip.onehot(labels[u], num_classes) for u in G}
@@ -25,7 +21,7 @@ for u, v in list(G.edges()):
 if "gossip" in scheme:
     devices = {u: gossip.GossipDevice(u, MLP(num_features, num_classes), features[u], onehot_labels[u] if u in training else empty_label) for u in G}
 elif "synth" in scheme:
-    devices = {u: gossip.EstimationDevice(u, MLP(num_features, num_classes), features[u], onehot_labels[u] if u in training else empty_label) for u in G}
+    devices = {u: gossip.EstimationDevice(u, MLP(num_features, num_classes), features[u], onehot_labels[u] if u in training else empty_label) for u in tqdm(G)}
 elif "pretrained" in scheme:
     from predict import train_or_load_MLP
     f = train_or_load_MLP(dataset, features, onehot_labels, num_classes, training, validation, test)
@@ -35,7 +31,7 @@ elif "pagerank" in scheme:
 else:
     raise Exception("Invalid scheme")
 
-
+# perform simulation
 device_list = list(devices.values())
 accuracies = list()
 for epoch in range(100):

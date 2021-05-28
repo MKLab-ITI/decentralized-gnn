@@ -97,32 +97,23 @@ class EstimationDevice(Device):
     def update_predictor(self):
         for decentralized_var, model_var in zip(self.vars[2:], self.f.variables):
             model_var.value = decentralized_var.value
-        #for _ in range(40):
         msqrt = 1 if len(self.synthetic)==0 else sum(mse(self.f(features), synthetic_predictions)**0.5 for features, synthetic_predictions in self.synthetic.values())
         msqrt = msqrt / max(len(self.synthetic),1)
-        if msqrt > 0.1:
+        if msqrt > 1./self.labels.shape[0]:
             if self.is_training_node:
                 self.f(self.features, is_training=True)
                 self.f.backpropagate(self.labels)
-            #else:
-            #    self.f(self.features, is_training=True)
-            #    self.f.backpropagate(onehot(np.argmax(self.labels if self.is_training_node else self.ML_predictions), self.ML_predictions.shape[0]))
             for features, synthetic_predictions in self.synthetic.values():
                 self.f(features, is_training=True)
                 self.f.backpropagate(synthetic_predictions)
             self.f.learner_end_batch()
-            #self.patience -= 1
             self.ML_predictions = self.f(self.features)
         errors = self.labels-self.ML_predictions if self.is_training_node else self.labels
         self.vars[0].set(errors)
         self.vars[0].update()
 
     def synthesize(self):
-        return self.features, onehot(np.argmax(self.labels if self.is_training_node else self.ML_predictions), self.ML_predictions.shape[0])
-        #else:
-        #    device = random.choice(list(self.synthetic.keys())) # avoids creating tensor copies and makes calculations faster
-        #    features = self.synthetic[device][0]
-        #    return features, onehot(np.argmax(self.f(features)), self.ML_predictions.shape[0])
+        return self.features, self.labels if self.is_training_node else self.ML_predictions
 
     def predict(self, propagation=True):
         if not propagation:
@@ -135,7 +126,7 @@ class EstimationDevice(Device):
     def ack(self, device, message):
         message, synthetic = message
         if not self.is_training_node:
-            self.vars[1].set(self.ML_predictions+10*self.vars[0].value)
+            self.vars[1].set(self.ML_predictions+self.vars[0].value)
         #device = synthetic[0]
         #synthetic = synthetic[1], synthetic[2]
         self.synthetic[device] = synthetic

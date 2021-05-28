@@ -1,3 +1,6 @@
+import numpy as np
+
+
 class DecentralizedVariable:
     def __init__(self, value, update_rule="PPR", balance=0.5, smooth=False):
         self.neighbors = dict()
@@ -7,7 +10,7 @@ class DecentralizedVariable:
         if update_rule=="PPR":
             self.update_rule = lambda n,p: 0.9*n+0.1*p
         elif update_rule=="FDiff":
-            self.update_rule = lambda n,p: n if p.sum() == 0 else p
+            self.update_rule = lambda n,p: n if np.sum(p) == 0 else p
         elif update_rule=="AVG":
             self.update_rule = lambda n,p: (n*len(self.neighbors)**(1-self.balance)+p) / (len(self.neighbors)+1)**(1-self.balance)
         else:

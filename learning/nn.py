@@ -88,11 +88,10 @@ def xavier(d0, d1, he=2):
 
 class MLP(Derivable):
     def __init__(self, num_inputs, num_outputs, learner=None):
-        super().__init__(learner)
         if learner is None:
             learner = BatchOptimizer(Adam())
+        super().__init__(learner)
         hidden_units = 64
-        self.learner = learner
         self.variables = list()
         self.layers = list()
         self.append(Dropout(0.5))
