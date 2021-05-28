@@ -5,7 +5,7 @@ from random import random
 from tqdm import tqdm
 from random import choice
 
-dataset = "cora"
+dataset = "pubmed"
 scheme = "synth"
 
 # load data

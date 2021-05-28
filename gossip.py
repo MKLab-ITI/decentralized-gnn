@@ -99,7 +99,7 @@ class EstimationDevice(Device):
             model_var.value = decentralized_var.value
         msqrt = 1 if len(self.synthetic)==0 else sum(mse(self.f(features), synthetic_predictions)**0.5 for features, synthetic_predictions in self.synthetic.values())
         msqrt = msqrt / max(len(self.synthetic),1)
-        if msqrt > 1./self.labels.shape[0]:
+        if msqrt > 0.1:
             if self.is_training_node:
                 self.f(self.features, is_training=True)
                 self.f.backpropagate(self.labels)
