@@ -86,6 +86,19 @@ def xavier(d0, d1, he=2):
     return (np.random.rand(d0, d1)*2-1)*(6./(d0+d1))**0.5 / he
 
 
+class Tautology(Derivable):
+    def __init__(self):
+        pass
+
+    def __call__(self, features, is_training=False):
+        return features
+
+    def backpropagate(self, derivative):
+        pass
+
+    def learner_end_batch(self):
+        pass
+
 class MLP(Derivable):
     def __init__(self, num_inputs, num_outputs, learner=None):
         if learner is None:
