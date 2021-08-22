@@ -23,10 +23,9 @@ class GossipDevice(Device):
         self.errors = self.append(PPRVariable(labels))
         self.predictions = self.append(PPRVariable(self.ML_predictions, "FDiff", balance=1))
         #self.scaler = self.append(PPRVariable(np.sum(np.abs(self.labels - self.ML_predictions)) if self.is_training() else 0, "FDiff", balance=1))
-        self.train_with_neighbors = True
         if gossip_merge is not None:
             for model_var in self.predictor.variables:
-                self.append(DecentralizedVariable(model_var, gossip_merge))
+                self.append(DecentralizedVariable(model_var, gossip_merge, is_training=self.is_training()))
         self.update_predictor()
 
     def is_training(self):
@@ -62,10 +61,7 @@ class EstimationDevice(GossipDevice):
 
     def train(self):
         if self.is_training():
-            self.predictor(self.features, is_training=True)
-            self.predictor.backpropagate(self.labels)
-        else:
-            self.synthetic[self] = (self.features, self.ML_predictions)
+            self.synthetic[self] = (self.features, self.labels if self.is_training() else self.ML_predictions)
         for features, synthetic_predictions in self.synthetic.values():
             self.predictor(features, is_training=True)
             self.predictor.backpropagate(synthetic_predictions)

@@ -5,8 +5,10 @@ from random import random
 from tqdm import tqdm
 from random import choice
 
-dataset = "pubmed"
-scheme = "synth"
+from propagate import TopoMergeVariable, RandomMergeVariable
+
+dataset = "cora"
+scheme = "gossprop"
 print("Scheme", scheme)
 # load data
 G, features, labels, training, validation, test = importer.load(dataset)
@@ -21,6 +23,8 @@ for u, v in list(G.edges()):
 
 if "gossip" in scheme:
     devices = {u: gossip.GossipDevice(u, MLP(num_features, num_classes), features[u], training_labels[u]) for u in G}
+elif "gossprop" in scheme:
+    devices = {u: gossip.GossipDevice(u, MLP(num_features, num_classes), features[u], training_labels[u], gossip_merge=RandomMergeVariable) for u in G}
 elif "synth" in scheme:
     devices = {u: gossip.EstimationDevice(u, MLP(num_features, num_classes), features[u], training_labels[u]) for u in G}
 elif "pretrained" in scheme:
@@ -35,18 +39,18 @@ else:
 # perform simulation
 device_list = list(devices.values())
 accuracies = list()
-for epoch in range(100):
+for epoch in range(200):
     threads = list()
     messages = list()
     messages.append(0)
     for u, v in tqdm(G.edges()):
         if random() <= 0.1 and u!=v:
             message = devices[u].send(devices[v])
-            if "random" in scheme:  # but not ngossip
+            if "random" in scheme:
                 message = message[0:2] + (choice(device_list).send(v)[2:])
             # messages.append(len(pickle.dumps(message)))
             message = devices[v].receive(devices[u], message)
-            if "random" in scheme:  # but not ngossip
+            if "random" in scheme:
                 message = message[0:2] + (choice(device_list).send(u)[2:])
             # messages.append(len(pickle.dumps(message)))
             devices[u].ack(devices[v], message)
