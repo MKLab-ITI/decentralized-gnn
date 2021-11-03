@@ -2,7 +2,7 @@ import numpy as np
 from random import choices
 
 class MergeVariable:
-    def __init__(self, value):
+    def __init__(self, value, is_training=None):
         self.value = value
 
     def set(self, value):
@@ -18,14 +18,17 @@ class MergeVariable:
         return self.value
 
 class OrthoMergeVariable:
-    def __init__(self, value):
+    def __init__(self, value, is_training=None):
         self.value = value
 
     def set(self, value):
         self.value = value
 
     def receive(self, _, value):
-        self.value = (self.value + value) * 0.5
+        norm = np.linalg.norm(value, 2)
+        if norm > 0:
+            #    value = value - (value*self.value).sum()*self.value/norm
+            self.value = (self.value + value/norm*np.linalg.norm(self.value, 2))*0.5
 
     def get(self):
         return self.value
@@ -35,17 +38,22 @@ class OrthoMergeVariable:
 
 
 class RandomMergeVariable:
-    def __init__(self, value, is_training=False):
+    def __init__(self, value, is_training=False, dims=20):
+        if dims is None:
+            dims = value.size
         self.value = value
-        self.training_id = (np.random.random(size=20)-0.5)*float(is_training)
+        self.training_id = (np.random.random(size=dims)-0.5)*float(is_training)
         self.personalization_value = value
         self.personalization_training_id = self.training_id
         self.neighbor_values = dict()
         self.neighbor_training = dict()
         self.neighbor_weights = dict()
+        self.dims = dims
+        self.is_training = is_training
 
     def set(self, value):
         self.value = value
+        self.personalization_value = value
 
     def receive(self, neighbor, message):
         value, training_id = message
@@ -53,21 +61,23 @@ class RandomMergeVariable:
         self.neighbor_training[neighbor] = training_id
         if neighbor not in self.neighbor_weights:
             self.neighbor_weights[neighbor] = 1
-
-        error = 0
-        for _ in range(1000):
-            for v in self.neighbor_weights:
-                self.neighbor_weights[v] -= 0.01*np.sum(error*self.neighbor_training[v])/20
-            prev_error = error
-            self.neighbor_weights = {k: max(v, 0) for k, v in self.neighbor_weights.items()}
-            weight_sum = sum(self.neighbor_weights.values())
+            weight_sum = sum(abs(val) for val in self.neighbor_weights.values())
             self.neighbor_weights = {k: v/weight_sum for k, v in self.neighbor_weights.items()}
+        alpha = 0.5
+        error = [100000]
+        for _ in range(1000):
+            prev_error = error
             error = 0
             for v in self.neighbor_training:
-                error = error + self.neighbor_training[v]*self.neighbor_weights[v] / len(self.neighbor_weights)
-            error = error * 0.85 + 0.15 * self.personalization_training_id
+                error = error + self.neighbor_training[v]*self.neighbor_weights[v] #/ len(self.neighbor_weights)
+            error = error * alpha + (1-alpha) * self.personalization_training_id
+            for v in self.neighbor_weights:
+                self.neighbor_weights[v] -= 0.01*np.sum(error*self.neighbor_training[v])/self.dims
+            #self.neighbor_weights = {k: max(v, 0.1/len(self.neighbor_weights)) for k, v in self.neighbor_weights.items()}
+            weight_sum = sum(abs(val) for val in self.neighbor_weights.values())
+            self.neighbor_weights = {k: v/weight_sum for k, v in self.neighbor_weights.items()}
             #print(np.linalg.norm(error))
-            if abs(np.linalg.norm(error)-np.linalg.norm(prev_error)) < 0.01:
+            if abs(np.linalg.norm(error)-np.linalg.norm(prev_error)) < 0.001:
                 break
         #print("finished iters")
         self.value = 0
@@ -75,11 +85,13 @@ class RandomMergeVariable:
         for v in self.neighbor_values:
             self.value = self.value + self.neighbor_values[v]*self.neighbor_weights[v]
             self.training_id = self.training_id + self.neighbor_training[v]*self.neighbor_weights[v]
-        self.value = self.value * 0.85 + 0.15 * self.personalization_value
-        self.training_id = self.training_id * 0.85 + 0.15 * self.personalization_training_id
+        self.value = self.value * alpha + (1-alpha) * self.personalization_value
+        #self.personalization_value = self.value
+        self.training_id = self.training_id * alpha + (1-alpha) * self.personalization_training_id
+        #self.personalization_training_id = self.training_id
 
     def get(self):
-        return self.value
+        return self.value#(self.value - self.personalization_value)/0.9
 
     def send(self):
         return self.value, self.training_id
@@ -110,12 +122,13 @@ class PPRVariable:
         self.neighbors = dict()
         self.personalization = None
         self.balance = balance
+        self.is_training = is_training
         if update_rule=="PPR":
             self.update_rule = lambda n,p: 0.9*n+0.1*p
         elif update_rule=="PR":
             self.update_rule = lambda n,p: n
         elif update_rule=="FDiff":
-            self.update_rule = lambda n,p: n if np.sum(p) == 0 else p
+            self.update_rule = lambda n,p: n*0.9+0.1*p if not self.is_training else p
         elif update_rule=="AVG":
             self.update_rule = lambda n,p: (n*len(self.neighbors)**(1-self.balance)+p) / (len(self.neighbors)+1)**(1-self.balance)
         elif update_rule=="CHOCO":
@@ -143,6 +156,7 @@ class PPRVariable:
         aggregate = 0
         for value in self.neighbors.values():
             aggregate = aggregate + value
+        #prev_value = self.neighbors.get(self, None)
         self.neighbors[self] = self.update_rule(aggregate/len(self.neighbors)**(1-self.balance), self.personalization)
 
 
@@ -175,8 +189,9 @@ class Device:
         return [var.send() for var in self.vars]
 
     def receive(self, device, message):
+        reply = self.send(None)
         self.ack(device, message)
-        return self.send(None)
+        return reply
 
     def ack(self, device, message):
         for var, value in zip(self.vars, message):

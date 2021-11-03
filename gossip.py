@@ -20,16 +20,19 @@ class GossipDevice(Device):
         self.features = features
         self.predictor = predictor
         self.ML_predictions = self.predictor(self.features)
-        self.errors = self.append(PPRVariable(labels))
+        self.errors = self.append(PPRVariable(labels, "PPR"))
         self.predictions = self.append(PPRVariable(self.ML_predictions, "FDiff", balance=1))
+        self._is_training = self.labels.sum() != 0
         #self.scaler = self.append(PPRVariable(np.sum(np.abs(self.labels - self.ML_predictions)) if self.is_training() else 0, "FDiff", balance=1))
         if gossip_merge is not None:
             for model_var in self.predictor.variables:
                 self.append(DecentralizedVariable(model_var, gossip_merge, is_training=self.is_training()))
+        #for _ in range(50):
+        #    self.train()
         self.update_predictor()
 
     def is_training(self):
-        return self.labels.sum() != 0
+        return self._is_training
 
     def train(self):
         if len(self.vars) > 2:
@@ -40,7 +43,6 @@ class GossipDevice(Device):
             self.ML_predictions = self.predictor(self.features)
 
     def update_predictor(self):
-        self.train()
         self.errors.set(self.labels - self.ML_predictions if self.is_training() else self.labels) # i.e. "else zero"
         self.predictions.set(self.ML_predictions+self.errors.get())
 
@@ -50,6 +52,7 @@ class GossipDevice(Device):
         return np.argmax(self.predictions.get())
 
     def ack(self, device, message):
+        self.train()
         super().ack(device, message)
         self.update_predictor()
 
