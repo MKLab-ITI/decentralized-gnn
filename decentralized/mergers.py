@@ -1,8 +1,9 @@
 import numpy as np
-from random import choices
+import random
 
-class MergeVariable:
-    def __init__(self, value, is_training=None):
+
+class AvgMerge:
+    def __init__(self, value, is_training=False):
         self.value = value
 
     def set(self, value):
@@ -17,18 +18,16 @@ class MergeVariable:
     def send(self):
         return self.value
 
-class OrthoMergeVariable:
-    def __init__(self, value, is_training=None):
+
+class SlowMerge:
+    def __init__(self, value, is_training=False):
         self.value = value
 
     def set(self, value):
         self.value = value
 
     def receive(self, _, value):
-        norm = np.linalg.norm(value, 2)
-        if norm > 0:
-            #    value = value - (value*self.value).sum()*self.value/norm
-            self.value = (self.value + value/norm*np.linalg.norm(self.value, 2))*0.5
+        self.value = self.value * 0.9 + value * 0.1
 
     def get(self):
         return self.value
@@ -36,6 +35,57 @@ class OrthoMergeVariable:
     def send(self):
         return self.value
 
+
+class BucketMerge:
+    def __init__(self, value, is_training=False):
+        self.value = value
+        self.neighbors = dict()
+
+    def set(self, value):
+        self.value = value
+
+    def receive(self, neighbor, value):
+        self.neighbors[neighbor] = value
+        self.neighbors[self] = value
+        mean = 0
+        for value in self.neighbors.values():
+            mean = mean + value / len(self.neighbors)
+        best_match = self
+        best_diff = float('inf')
+        for neighbor, value in self.neighbors.items():
+            diff = np.linalg.norm(value-mean, 2)
+            if diff < best_diff:
+                best_diff = diff
+                best_match = neighbor
+
+        self.value = self.neighbors[best_match]*0.9 + mean*0.1
+
+    def get(self):
+        return self.value
+
+    def send(self):
+        return self.value
+
+
+
+class TopologicalMerge:
+    def __init__(self, value, is_training=False):
+        self.value = value
+        self.neighbors = dict()
+
+    def set(self, value):
+        self.value = value
+
+    def get(self):
+        return self.value
+
+    def receive(self, neighbor, value):
+        value, nns = value
+        self.neighbors[neighbor] = 1
+        self.value = self.value + 0.2*(value-self.value)/len(self.neighbors)**0.5/max(1, nns)**0.5
+
+    def send(self):
+        return self.value, len(self.neighbors)
 
 class RandomMergeVariable:
     def __init__(self, value, is_training=False, dims=20):
@@ -97,26 +147,6 @@ class RandomMergeVariable:
         return self.value, self.training_id
 
 
-class TopoMergeVariable:
-    def __init__(self, value, is_training=False):
-        self.value = value
-        self.neighbors = dict()
-
-    def set(self, value):
-        self.value = value
-
-    def get(self):
-        return self.value
-
-    def receive(self, neighbor, value):
-        value, nns = value
-        self.neighbors[neighbor] = 1
-        self.value = self.value + 0.2*(value-self.value)/len(self.neighbors)**0.5/max(1, nns)**0.5
-
-    def send(self):
-        return self.value, len(self.neighbors)
-
-
 class PPRVariable:
     def __init__(self, value, update_rule="PPR", balance=0.5, is_training=False):
         self.neighbors = dict()
@@ -158,41 +188,3 @@ class PPRVariable:
             aggregate = aggregate + value
         #prev_value = self.neighbors.get(self, None)
         self.neighbors[self] = self.update_rule(aggregate/len(self.neighbors)**(1-self.balance), self.personalization)
-
-
-class DecentralizedVariable:
-    def __init__(self, variable, base_class, is_training=False):
-        self.variable = variable
-        self.merger = base_class(variable.value, is_training=is_training)
-
-    def send(self):
-        self.merger.set(self.variable.value)
-        return self.merger.send()
-
-    def get(self):
-        return self.value
-
-    def receive(self, neighbor, value):
-        self.merger.receive(neighbor, value)
-        self.variable.value = self.merger.get()
-
-
-class Device:
-    def __init__(self):
-        self.vars = list()
-
-    def append(self, var):
-        self.vars.append(var)
-        return var
-
-    def send(self, device=None):
-        return [var.send() for var in self.vars]
-
-    def receive(self, device, message):
-        reply = self.send(None)
-        self.ack(device, message)
-        return reply
-
-    def ack(self, device, message):
-        for var, value in zip(self.vars, message):
-            var.receive(device, value)

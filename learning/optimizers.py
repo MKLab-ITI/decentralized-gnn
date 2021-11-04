@@ -37,7 +37,9 @@ class Adam:
         error = error + variable.value*variable.regularization
         self.mt[variable] = self.beta1*self.mt[variable] + (1-self.beta1)*error
         self.vt[variable] = self.beta2*self.vt[variable] + (1-self.beta2)*np.square(error)
-        variable.value = variable.value - self.learning_rate*self.mt[variable]/(1-self.beta1t[variable])/(self.epsilon+np.sqrt(self.vt[variable]/(1-self.beta2t[variable])))
+        learning_ratet = self.learning_rate * (1-self.beta2t[variable])**0.5/(1-self.beta1t[variable])
+        epsilont = self.epsilon * (1-self.beta1t[variable]) / (1-self.beta2t[variable])**0.5
+        variable.value = variable.value - learning_ratet*self.mt[variable] / (epsilont+np.sqrt(self.vt[variable]))
 
 
 class BatchOptimizer:

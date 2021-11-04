@@ -1,8 +1,11 @@
 from learning.nn import MLP
-from gossip import onehot
 import os
 import pickle
 import numpy as np
+
+
+def onehot(label, num_classes):
+    return np.array([1. if label is not None and label == i else 0. for i in range(num_classes)])
 
 
 def train_or_load_MLP(name, features, onehot_labels, num_classes, training, validation, test):

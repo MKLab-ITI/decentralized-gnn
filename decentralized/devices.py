@@ -1,8 +1,7 @@
-from propagate import DecentralizedVariable, MergeVariable, Device, TopoMergeVariable, PPRVariable
 import numpy as np
+from decentralized.abstracts import Device, DecentralizedVariable
+from decentralized.mergers import AvgMerge, PPRVariable
 
-def onehot(label, num_classes):
-    return np.array([1. if label is not None and label == i else 0. for i in range(num_classes)])
 
 def mse(x1, x2):
     mx1 = x1.max()
@@ -13,7 +12,7 @@ def mse(x1, x2):
 
 
 class GossipDevice(Device):
-    def __init__(self, node, predictor, features, labels, gossip_merge=MergeVariable):
+    def __init__(self, node, predictor, features, labels, gossip_merge=AvgMerge):
         super().__init__()
         self.node = node
         self.labels = labels
