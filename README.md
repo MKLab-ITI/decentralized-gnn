@@ -3,7 +3,7 @@ A package for implementing and simulating decentralized Graph Neural Network alg
 for classification of peer-to-peer nodes. Developed code supports the publication
 *p2pGNN: A Decentralized Graph Neural Network for Node Classification in Peer-to-Peer Networks*.
 
-# :zap: Quick Start
+## :zap: Quick Start
 To generate a local instance of a decentralized learning device:
 ```python
 from decentralized.devices import GossipDevice
@@ -60,7 +60,7 @@ Then, devices are instantiated given desired setting preferences.
 
 :warning: Some merge schemes take up a lot of memory to simulate.
 
-# :notebook: Citation
+## :notebook: Citation
 ```
 TBD
 ```
