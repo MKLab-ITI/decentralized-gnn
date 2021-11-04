@@ -1,51 +1,40 @@
-from data import importer
-import gossip
-from learning.nn import MLP
-from random import random
-from tqdm import tqdm
-import pickle
-from random import choice
+import decentralized
+import numpy as np
 
-dataset = "pubmed"
-scheme = "gossip"
 
-# load data
-G, features, labels, training, validation, test = importer.load(dataset)
-training, validation = validation, training
-num_classes = len(set(labels.values()))
-num_features = len(list(features.values())[0])
-onehot_labels = {u: gossip.onehot(labels[u] if u in training else None, num_classes) for u in G}
-for u, v in list(G.edges()):
-    G.add_edge(v, u)
+def experiment(dataset,
+               device_type=decentralized.devices.GossipDevice,
+               gossip_merge=decentralized.mergers.AvgMerge,
+               pretrained=False,
+               gossip_pull=False,
+               seed=0):
+    measures = {"acc": list(), "base_acc": list()}
+    network, test_labels = decentralized.simulation.create_network(dataset, device_type,
+                                                                   pretrained=pretrained,
+                                                                   gossip_merge=gossip_merge,
+                                                                   gossip_pull=gossip_pull,
+                                                                   seed=seed)
+    for epoch in range(800):
+        network.round()
+        accuracy_base = sum(1. if network.devices[u].predict(False) == label else 0 for u, label in test_labels.items()) / len(test_labels)
+        accuracy = sum(1. if network.devices[u].predict() == label else 0 for u, label in test_labels.items()) / len(test_labels)
+        measures["base_acc"].append(accuracy_base)
+        measures["acc"].append(accuracy)
+        if epoch % 1 == 0:
+            print(f"Epoch {epoch} \t Acc {accuracy:.3f} \t Base acc {accuracy_base:.3f}")
+    return measures
 
-if "gossip" in scheme:
-    devices = {u: gossip.GossipDevice(u, MLP(num_features, num_classes), features[u], onehot_labels[u] if u in training else onehot_labels[u]) for u in G}
-elif "synth" in scheme:
-    devices = {u: gossip.EstimationDevice(u, MLP(num_features, num_classes), features[u], onehot_labels[u] if u in training else onehot_labels[u]) for u in G}
-elif "pretrained" in scheme:
-    from predict import train_or_load_MLP
-    f = train_or_load_MLP(dataset, features, onehot_labels, num_classes, training, validation, test)
-    devices = {u: gossip.PageRankDevice(u, f(features[u]), onehot_labels[u] if u in training else onehot_labels[u]) for u in G}
-else:
-    raise Exception("Invalid scheme")
 
-device_list = list(devices.values())
-accuracies = list()
-for epoch in range(100):
-    messages = list()
-    for u, v in tqdm(G.edges()):
-        if random() <= 0.1:
-            message = devices[u].send(devices[v])
-            if scheme == "gossip":  # but not ngossip
-                message = message[0:2] + (choice(device_list).send()[2:])
-            messages.append(len(pickle.dumps(message)))
-            message = devices[v].receive(devices[u], message)
-            if scheme == "gossip": # but not ngossip
-                message = message[0:2] + (choice(device_list).send()[2:])
-            messages.append(len(pickle.dumps(message)))
-            message = devices[u].ack(devices[v], message)
-    accuracy = sum(1. if devices[u].predict() == labels[u] else 0 for u in test) / len(test)
-    print("Epoch", epoch, "Accuracy", accuracy, "message size", sum(messages) / float(len(messages)))
-    accuracies.append(accuracy)
-print(dataset+"_"+scheme, accuracies, ";")
+setting = {"dataset": "cora",
+           "device_type": decentralized.devices.GossipDevice,
+           "gossip_merge": decentralized.mergers.BucketMerge,
+           "pretrained": False,
+           "gossip_pull": False}
+print(setting)
 
+measures = {"acc": list(), "base_acc": list()}
+for repetition in range(1):
+    for measure, curve in experiment(**setting, seed=repetition).items():
+        if measure in measures:
+            measures[measure].append(curve[-1])
+print("Average "+str({measure: np.mean(values) for measure, values in measures.items()}))
