@@ -5,6 +5,7 @@ import random
 class AvgMerge:
     def __init__(self, value, is_training=False):
         self.value = value
+        self.is_training = is_training
 
     def set(self, value):
         self.value = value
@@ -27,45 +28,13 @@ class SlowMerge:
         self.value = value
 
     def receive(self, _, value):
-        self.value = self.value * 0.9 + value * 0.1
+        self.value = self.value * 0.99 + value * 0.01
 
     def get(self):
         return self.value
 
     def send(self):
         return self.value
-
-
-class BucketMerge:
-    def __init__(self, value, is_training=False):
-        self.value = value
-        self.neighbors = dict()
-
-    def set(self, value):
-        self.value = value
-
-    def receive(self, neighbor, value):
-        self.neighbors[neighbor] = value
-        self.neighbors[self] = value
-        mean = 0
-        for value in self.neighbors.values():
-            mean = mean + value / len(self.neighbors)
-        best_match = self
-        best_diff = float('inf')
-        for neighbor, value in self.neighbors.items():
-            diff = np.linalg.norm(value-mean, 2)
-            if diff < best_diff:
-                best_diff = diff
-                best_match = neighbor
-
-        self.value = self.neighbors[best_match]*0.9 + mean*0.1
-
-    def get(self):
-        return self.value
-
-    def send(self):
-        return self.value
-
 
 
 class TopologicalMerge:
@@ -87,12 +56,13 @@ class TopologicalMerge:
     def send(self):
         return self.value, len(self.neighbors)
 
+
 class RandomMergeVariable:
     def __init__(self, value, is_training=False, dims=20):
         if dims is None:
             dims = value.size
-        self.value = value
-        self.training_id = (np.random.random(size=dims)-0.5)*float(is_training)
+        self.value = np.ones((1,1))*value if isinstance(value, float) else value
+        self.training_id = np.random.random(size=dims)*float(is_training)
         self.personalization_value = value
         self.personalization_training_id = self.training_id
         self.neighbor_values = dict()
@@ -105,43 +75,43 @@ class RandomMergeVariable:
         self.value = value
         self.personalization_value = value
 
+    def _sum(self, neighbor_values):
+        ret = 0
+        for v in neighbor_values:
+            ret = ret + neighbor_values[v]*self.neighbor_weights[v]
+        return ret
+
     def receive(self, neighbor, message):
         value, training_id = message
+        if np.linalg.norm(training_id, 2) == 0:
+            return
         self.neighbor_values[neighbor] = value
         self.neighbor_training[neighbor] = training_id
+        if self.is_training:
+            self.neighbor_training[self] = self.personalization_training_id if self.is_training else self.training_id
+            self.neighbor_values[self] = self.personalization_value if self.is_training else self.value
+            self.neighbor_weights[self] = 1
         if neighbor not in self.neighbor_weights:
             self.neighbor_weights[neighbor] = 1
-            weight_sum = sum(abs(val) for val in self.neighbor_weights.values())
-            self.neighbor_weights = {k: v/weight_sum for k, v in self.neighbor_weights.items()}
-        alpha = 0.5
+        if len(self.neighbor_weights) <= 1:
+            return
+        #weight_sum = sum(abs(val) for val in self.neighbor_weights.values())
+        self.neighbor_weights = {k: 1./len(self.neighbor_weights) for k, v in self.neighbor_weights.items()}
         error = [100000]
         for _ in range(1000):
             prev_error = error
-            error = 0
-            for v in self.neighbor_training:
-                error = error + self.neighbor_training[v]*self.neighbor_weights[v] #/ len(self.neighbor_weights)
-            error = error * alpha + (1-alpha) * self.personalization_training_id
+            error = self._sum(self.neighbor_training) - 0.5
             for v in self.neighbor_weights:
                 self.neighbor_weights[v] -= 0.01*np.sum(error*self.neighbor_training[v])/self.dims
-            #self.neighbor_weights = {k: max(v, 0.1/len(self.neighbor_weights)) for k, v in self.neighbor_weights.items()}
             weight_sum = sum(abs(val) for val in self.neighbor_weights.values())
             self.neighbor_weights = {k: v/weight_sum for k, v in self.neighbor_weights.items()}
-            #print(np.linalg.norm(error))
-            if abs(np.linalg.norm(error)-np.linalg.norm(prev_error)) < 0.001:
+            if abs(np.linalg.norm(error)-np.linalg.norm(prev_error)) < 0.0001:
                 break
-        #print("finished iters")
-        self.value = 0
-        self.training_id = 0
-        for v in self.neighbor_values:
-            self.value = self.value + self.neighbor_values[v]*self.neighbor_weights[v]
-            self.training_id = self.training_id + self.neighbor_training[v]*self.neighbor_weights[v]
-        self.value = self.value * alpha + (1-alpha) * self.personalization_value
-        #self.personalization_value = self.value
-        self.training_id = self.training_id * alpha + (1-alpha) * self.personalization_training_id
-        #self.personalization_training_id = self.training_id
+        self.value = self._sum(self.neighbor_values)
+        self.training_id = self._sum(self.neighbor_training)
 
     def get(self):
-        return self.value#(self.value - self.personalization_value)/0.9
+        return self.value
 
     def send(self):
         return self.value, self.training_id

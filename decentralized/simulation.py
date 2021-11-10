@@ -7,7 +7,7 @@ import threading
 from tqdm import tqdm
 
 
-def create_network(dataset, device_type, pretrained=False, seed=0, gossip_pull=False, **kwargs):
+def create_network(dataset, device_type, classifier=MLP, pretrained=False, seed=0, gossip_pull=False, **kwargs):
     graph, features, labels, training, validation, test = importer.load(dataset, verbose=False)
     num_classes = len(set(labels.values()))
     num_features = len(list(features.values())[0])
@@ -20,16 +20,19 @@ def create_network(dataset, device_type, pretrained=False, seed=0, gossip_pull=F
     if pretrained:
         if "gossip_merge" not in kwargs:
             kwargs["gossip_merge"] = None
-        pretrained = train_or_load_MLP(dataset, features, onehot_labels, num_classes, training, validation, test)
+        pretrained = train_or_load_MLP(dataset, features, onehot_labels, num_classes, training, validation, test, classifier=classifier)
 
-        def create_MLP(u):
+        def init_classifier(u):
             return pretrained
     else:
 
-        def create_MLP(u):
-            return MLP(num_features, num_classes)
+        def init_classifier(u):
+            return classifier(num_features, num_classes)
 
-    network = Network(graph, lambda u: device_type(u, create_MLP(u), features[u], training_labels[u], **kwargs), seed=seed, gossip_pull=gossip_pull)
+    network = Network(graph,
+                      lambda u: device_type(u, init_classifier(u), features[u], training_labels[u], **kwargs),
+                      seed=seed,
+                      gossip_pull=gossip_pull)
     test_labels = {u: labels[u] for u in test}
     del graph
     del features

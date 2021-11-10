@@ -46,9 +46,13 @@ class BatchOptimizer:
     def __init__(self, base):
         self.base = base
         self.accumulation = dict()
+        self.sample_weight = 1
+
+    def set_sample_weight(self, weight):
+        self.sample_weight = weight
 
     def update(self, variable: Variable, error):
-        self.accumulation[variable] = self.accumulation.get(variable, 0) + error
+        self.accumulation[variable] = self.accumulation.get(variable, 0) + error * self.sample_weight
 
     def end_batch(self):
         for variable in self.accumulation:

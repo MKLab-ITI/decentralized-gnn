@@ -99,6 +99,45 @@ class Tautology(Derivable):
     def learner_end_batch(self):
         pass
 
+
+class LR(Derivable):
+    def __init__(self, num_inputs, num_outputs, learner=None):
+        if learner is None:
+            learner = BatchOptimizer(Adam(0.1))
+        super().__init__(learner)
+        self.variables = list()
+        self.layers = list()
+        #self.append(Dropout(0.5))
+        self.append(Affine(num_inputs, num_outputs, learner))
+        self.append(SoftmaxCE(learner))
+
+    def append(self, layer):
+        self.layers.append(layer)
+        self.variables.extend(layer.get_vars())
+
+    def __call__(self, features, is_training=False):
+        features = np.array(features)
+        for layer in self.layers:
+            features = layer(features, is_training)
+        return features
+
+    def backpropagate(self, derivative):
+        if np.sum(derivative) == 0:
+            return
+        for layer in self.layers[::-1]:
+            derivative = layer.backpropagate(derivative)
+
+    def save(self):
+        return [var.value for var in self.variables]
+
+    def load(self, values):
+        for value, var in zip(values, self.variables):
+            var.value = value
+
+    def learner_end_batch(self):
+        self.learner.end_batch()
+
+
 class MLP(Derivable):
     def __init__(self, num_inputs, num_outputs, learner=None):
         if learner is None:

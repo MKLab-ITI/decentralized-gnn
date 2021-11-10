@@ -8,9 +8,10 @@ def onehot(label, num_classes):
     return np.array([1. if label is not None and label == i else 0. for i in range(num_classes)])
 
 
-def train_or_load_MLP(name, features, onehot_labels, num_classes, training, validation, test):
-    f = MLP(len(list(features.values())[0]), num_classes)
-    if not os.path.exists('data/'+name+'model.pickle'):
+def train_or_load_MLP(name, features, onehot_labels, num_classes, training, validation, test, classifier=MLP):
+    f = classifier(len(list(features.values())[0]), num_classes)
+    path = 'data/'+name+classifier.__name__+'.pickle'
+    if not os.path.exists(path):
         best_loss = float('inf')
         interest = 100
         for epoch in range(2000):
@@ -30,10 +31,10 @@ def train_or_load_MLP(name, features, onehot_labels, num_classes, training, vali
                 interest -= 1
                 if interest == 0:
                     break
-        with open('data/'+name+'model.pickle', 'wb') as file:
+        with open(path, 'wb') as file:
             pickle.dump(best_vars, file, protocol=pickle.HIGHEST_PROTOCOL)
 
-    with open('data/'+name+'model.pickle', 'rb') as file:
+    with open(path, 'rb') as file:
         best_vars = pickle.load(file)
         f.load(best_vars)
         print("Test Accuracy", sum(1. if np.argmax(f(features[u])) == np.argmax(onehot_labels[u]) else 0 for u in test)/len(test))

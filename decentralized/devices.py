@@ -1,4 +1,5 @@
 import numpy as np
+from learning.optimizers import Variable
 from decentralized.abstracts import Device, DecentralizedVariable
 from decentralized.mergers import AvgMerge, PPRVariable
 
@@ -18,7 +19,7 @@ class GossipDevice(Device):
         self.labels = labels
         self.features = features
         self.predictor = predictor
-        self.ML_predictions = self.predictor(self.features)
+        self.ML_predictions = self.predictor(self.features) * (1 if gossip_merge is not None else 0)
         self.errors = self.append(PPRVariable(labels, "PPR"))
         self.predictions = self.append(PPRVariable(self.ML_predictions, "FDiff", balance=1))
         self._is_training = self.labels.sum() != 0
@@ -26,8 +27,6 @@ class GossipDevice(Device):
         if gossip_merge is not None:
             for model_var in self.predictor.variables:
                 self.append(DecentralizedVariable(model_var, gossip_merge, is_training=self.is_training()))
-        #for _ in range(50):
-        #    self.train()
         self.update_predictor()
 
     def is_training(self):
@@ -51,27 +50,36 @@ class GossipDevice(Device):
         return np.argmax(self.predictions.get())
 
     def ack(self, device, message):
-        self.train()
         super().ack(device, message)
+        self.train()
+        #super().ack(device, message)
         self.update_predictor()
 
 
 class EstimationDevice(GossipDevice):
-    def __init__(self, node, predictor, features, labels):
+    def __init__(self, node, predictor, features, labels, gossip_merge=None):
         self.synthetic = dict()
         super().__init__(node, predictor, features, labels, None)
+        from .mergers import RandomMergeVariable
+        self.random_weight_var = DecentralizedVariable(Variable(1.), RandomMergeVariable, is_training=self.is_training())
+        self.append(self.random_weight_var)
 
     def train(self):
         if self.is_training():
             self.synthetic[self] = (self.features, self.labels if self.is_training() else self.ML_predictions)
-        for features, synthetic_predictions in self.synthetic.values():
-            self.predictor(features, is_training=True)
-            self.predictor.backpropagate(synthetic_predictions)
-        self.predictor.learner_end_batch()
+        for _ in range(50):
+            for device in self.synthetic:
+                if device in self.random_weight_var.merger.neighbor_weights or device==self:
+                    features, synthetic_predictions = self.synthetic[device]
+                    #self.predictor.learner.set_sample_weight(1. if device == self else self.random_weight_var.merger.neighbor_weights[device])
+                    self.predictor(features, is_training=True)
+                    self.predictor.backpropagate(synthetic_predictions)
+            self.predictor.learner_end_batch()
         self.ML_predictions = self.predictor(self.features)
+        #self.synthetic.clear()
 
     def send(self, device):
-        return super().send(device), (self.features, self.labels if self.is_training() else self.ML_predictions)
+        return super().send(device), (self.features, self.ML_predictions)
 
     def ack(self, device, message):
         message, synthetic = message
