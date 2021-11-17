@@ -2,6 +2,7 @@ import numpy as np
 from learning.optimizers import Variable
 from decentralized.abstracts import Device, DecentralizedVariable
 from decentralized.mergers import AvgMerge, PPRVariable
+import random
 
 
 def mse(x1, x2):
@@ -67,7 +68,6 @@ class EstimationDevice(GossipDevice):
     def train(self):
         if self.is_training():
             self.synthetic[self] = (self.features, self.labels if self.is_training() else self.ML_predictions)
-        for _ in range(50):
             for device in self.synthetic:
                 if device in self.random_weight_var.merger.neighbor_weights or device==self:
                     features, synthetic_predictions = self.synthetic[device]
@@ -84,4 +84,31 @@ class EstimationDevice(GossipDevice):
     def ack(self, device, message):
         message, synthetic = message
         self.synthetic[device] = synthetic
+        super().ack(device, message)
+
+
+
+class CorpusDevice(GossipDevice):
+    def __init__(self, node, predictor, features, labels, gossip_merge=None):
+        self.synthetic = dict()
+        super().__init__(node, predictor, features, labels, gossip_merge)
+
+    def train(self):
+        if self.is_training():
+            self.synthetic[self] = (self.features, self.labels)
+            for device in self.synthetic:
+                features, synthetic_predictions = self.synthetic[device]
+                self.predictor(features, is_training=True)
+                self.predictor.backpropagate(synthetic_predictions)
+            self.predictor.learner_end_batch()
+        self.ML_predictions = self.predictor(self.features)
+
+    def send(self, device):
+        sample = random.choice(list(self.synthetic.keys())) if self.synthetic else None
+        return super().send(device), None if sample is None else (sample, self.synthetic[sample][0], self.synthetic[sample][1])
+
+    def ack(self, device, message):
+        message, synthetic = message
+        if synthetic is not None:
+            self.synthetic[synthetic[0]] = (synthetic[1], synthetic[2])
         super().ack(device, message)

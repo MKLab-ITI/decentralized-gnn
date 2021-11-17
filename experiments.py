@@ -28,10 +28,10 @@ def experiment(dataset,
     return measures
 
 
-setting = {"dataset": "cora",
-           "device_type": decentralized.devices.GossipDevice,
-           "gossip_merge": decentralized.mergers.SlowMerge,
-           "classifier": learning.nn.LR,
+setting = {"dataset": "citeseer",
+           "device_type": decentralized.devices.CorpusDevice,
+           "gossip_merge": decentralized.mergers.AvgMerge,
+           "classifier": learning.nn.MLP,
            "pretrained": False,
            "gossip_pull": False}
 print(setting)

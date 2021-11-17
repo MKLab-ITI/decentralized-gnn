@@ -140,6 +140,7 @@ class LR(Derivable):
 
 class MLP(Derivable):
     def __init__(self, num_inputs, num_outputs, learner=None):
+        np.random.seed(0)
         if learner is None:
             learner = BatchOptimizer(Adam())
         super().__init__(learner)

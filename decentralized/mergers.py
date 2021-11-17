@@ -23,12 +23,13 @@ class AvgMerge:
 class SlowMerge:
     def __init__(self, value, is_training=False):
         self.value = value
+        self.is_training = is_training
 
     def set(self, value):
         self.value = value
 
     def receive(self, _, value):
-        self.value = self.value * 0.99 + value * 0.01
+        self.value = self.value * 0.9 + value * 0.1
 
     def get(self):
         return self.value
