@@ -118,6 +118,33 @@ class RandomMergeVariable:
         return self.value, self.training_id
 
 
+class Smooth:
+    def __init__(self, var):
+        self.var = var
+        self.value = 0
+        self.beta = 0.9
+        self.betat = 1
+
+    def set(self, value):
+        self.var.set(value)
+
+    def get(self):
+        if self.betat == 1:
+            return self.var.get()
+        return self.value / (1-self.betat)
+
+    def receive(self, neighbor, value):
+        self.var.receive(neighbor, value)
+        self.update()
+
+    def send(self):
+        return self.var.send()
+
+    def update(self):
+        self.value = self.var.get()*(1-self.beta) + self.beta*self.value
+        self.betat *= self.beta
+
+
 class PPRVariable:
     def __init__(self, value, update_rule="PPR", balance=0.5, is_training=False):
         self.neighbors = dict()

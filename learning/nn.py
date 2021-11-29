@@ -27,6 +27,10 @@ class Derivable(object):
     def serialize(self):
         raise Exception("Not implemented")
 
+    def clear_gradients(self):
+        del self.value
+        del self.inputs
+
 
 class Affine(Derivable):
     def __init__(self, num_inputs, num_outputs, learner, bias=False, regularization=0.0005):
@@ -136,6 +140,8 @@ class LR(Derivable):
 
     def learner_end_batch(self):
         self.learner.end_batch()
+        for layer in self.layers[::-1]:
+            layer.clear_gradients()
 
 
 class MLP(Derivable):
@@ -179,3 +185,6 @@ class MLP(Derivable):
 
     def learner_end_batch(self):
         self.learner.end_batch()
+        for layer in self.layers[::-1]:
+            layer.clear_gradients()
+
