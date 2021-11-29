@@ -30,7 +30,6 @@ def experiment(dataset,
     return measures
 
 
-"""
 setting = {"dataset": "citeseer",
            "device_type": decentralized.devices.GossipDevice,
            "gossip_merge": None,
@@ -52,9 +51,6 @@ print("Average "+str({measure: [np.mean(values), np.std(values)] for measure, va
 print("Average stds "+str({measure: [np.mean(values), np.std(values)] for measure, values in measures_curve_std.items()}))
 curve1 = curves["acc"][0]
 curve4 = curves["base_acc"][0]
-"""
-
-
 
 
 
