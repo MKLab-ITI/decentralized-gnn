@@ -1,6 +1,6 @@
 import numpy as np
 import inspect
-from .optimizers import Variable, Adam, BatchOptimizer
+from .optimizers import Variable, Adam, BatchOptimizer, CenteredOptimizer
 
 
 class Derivable(object):
@@ -149,6 +149,7 @@ class MLP(Derivable):
         np.random.seed(0)
         if learner is None:
             learner = BatchOptimizer(Adam())
+            #learner = CenteredOptimizer(learner)
         super().__init__(learner)
         hidden_units = 64
         self.variables = list()
