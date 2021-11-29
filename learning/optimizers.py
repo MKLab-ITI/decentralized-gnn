@@ -15,6 +15,26 @@ class Gradient:
         variable.value = variable.value - error*self.learning_rate - variable.value*variable.regularization*self.learning_rate
 
 
+class CenteredOptimizer:
+    def __init__(self, base):
+        self.base = base
+        self.center = dict()
+
+    def set_sample_weight(self, weight):
+        self.base.set_sample_weight(weight)
+
+    def update(self, variable: Variable, error):
+        prev_center = self.center.get(variable, 0)
+        error = error - 0.5*(variable.value-prev_center)
+        self.base.update(variable, error)
+        self.center[variable] = variable.value
+
+    def end_batch(self):
+        self.base.end_batch()
+        for variable in self.center:
+            self.center[variable] = variable.value
+
+
 class Adam:
     def __init__(self, learning_rate=0.01, beta1=0.9, beta2=0.999, epsilon=1.E-7):
         self.learning_rate = learning_rate

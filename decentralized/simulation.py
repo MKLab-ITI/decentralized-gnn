@@ -9,11 +9,14 @@ from tqdm import tqdm
 
 def create_network(dataset, device_type, classifier=MLP, pretrained=False, seed=0, gossip_pull=False, **kwargs):
     graph, features, labels, training, validation, test = importer.load(dataset, verbose=False)
+    #training, test = test, training
     num_classes = len(set(labels.values()))
     num_features = len(list(features.values())[0])
     onehot_labels = {u: onehot(labels[u], num_classes) for u in graph}
     empty_label = onehot(None, num_classes)
-    training_labels = {u: onehot_labels[u] if u in training else empty_label for u in graph}
+    training = set(training)
+    validation = set(validation)
+    training_labels = {u: onehot_labels[u] if u in training or u in validation else empty_label for u in graph}
     for u, v in list(graph.edges()):
         graph.add_edge(v, u)
 
@@ -30,7 +33,8 @@ def create_network(dataset, device_type, classifier=MLP, pretrained=False, seed=
             return classifier(num_features, num_classes)
 
     network = Network(graph,
-                      lambda u: device_type(u, init_classifier(u), features[u], training_labels[u], **kwargs),
+                      lambda u: device_type(u, init_classifier(u), features[u], training_labels[u],
+                                            train_steps=1 if u in training else 0, **kwargs),
                       seed=seed,
                       gossip_pull=gossip_pull)
     test_labels = {u: labels[u] for u in test}
@@ -71,5 +75,5 @@ class Network:
                 if u not in communicating and v not in communicating:
                     communicating.add(u)
                     communicating.add(v)
-                    #executor.submit(self._communicate, u, v)
-                    self._communicate(u, v)
+                    executor.submit(self._communicate, u, v)
+                    #self._communicate(u, v)

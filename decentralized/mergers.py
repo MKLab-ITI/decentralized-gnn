@@ -5,19 +5,58 @@ import random
 class AvgMerge:
     def __init__(self, value, is_training=False):
         self.value = value
+        self.beta = 1 if is_training else 0
         self.is_training = is_training
 
     def set(self, value):
         self.value = value
+        self.beta = 1
 
     def receive(self, _, value):
+        value, beta = value
         self.value = (self.value + value)*0.5
+        self.beta = (self.beta + beta)*0.5
 
     def get(self):
-        return self.value
+        if self.beta == 0:
+            return self.value
+        return self.value / self.beta
 
     def send(self):
-        return self.value
+        return self.value, self.beta
+
+
+
+class FairMerge:
+    def __init__(self, value, is_training=False):
+        self.value = value if is_training else 0*value
+        #self.prev_set = value
+        self.pvalue = 1 if is_training else 0
+        self.is_training = is_training
+
+    def set(self, value):
+        #$self.pvalue = 1 if self.is_training else 0
+        #self.value = self.value-self.prev_set+value
+        #self.prev_set = value
+        self.value = value
+
+    def receive(self, _, value):
+        value, pvalue = value
+        if self.pvalue+value==0:
+            self.value = value
+            self.pvalue = pvalue
+            return
+        p = self.pvalue/(self.pvalue+value)
+        self.value = self.value*p + value*(1-p)
+        self.pvalue = self.pvalue*p + pvalue*(1-p)
+
+    def get(self):
+        if self.pvalue == 0:
+            return self.value
+        return self.value / self.pvalue
+
+    def send(self):
+        return self.value, self.pvalue
 
 
 class SlowMerge:
@@ -118,6 +157,74 @@ class RandomMergeVariable:
         return self.value, self.training_id
 
 
+class DecoupleNormalization:
+    def __init__(self, var):
+        self.var = var
+        if self.var.is_training:
+            self.norm = np.sum(np.abs(self.var.get()))
+            self.betat = 1
+        else:
+            self.norm = 0
+            self.betat = 0
+
+    def set(self, value):
+        self.var.set(value)
+        if self.var.is_training:
+            self.norm = np.sum(np.abs(self.var.get()))
+        else:
+            self.norm = 0
+
+    def get(self):
+        norm = np.sum(np.abs(self.var.get()))
+        if norm == 0 or self.betat == 0:
+            return self.var.get()
+        return self.var.get() / norm * self.norm / self.betat
+
+    def receive(self, neighbor, value):
+        value, norm = value
+        norm_value = np.sum(np.abs(value))
+        if norm_value != 0:
+            value = value / norm_value
+        self.var.receive(neighbor, value)
+        self.norm = self.norm*0.5 + 0.5*norm
+        if norm != 0:
+            self.betat = 0.5 + 0.5*self.betat
+
+    def send(self):
+        return self.var.send(), self.norm
+
+    def update(self):
+        self.var.update()
+
+
+class Smoothen:
+    def __init__(self, var):
+        self.var = var
+        self.accum = 0
+        self.beta = 0.95
+        self.betat = 1
+
+    def set(self, value):
+        self.var.set(value)
+
+    def get(self):
+        if self.betat == 1:
+            return self.var.get()
+        return self.accum / (1-self.betat)
+
+    def receive(self, neighbor, value):
+        self.var.receive(neighbor, value)
+
+    def send(self):
+        return self.var.send()
+
+    def update(self):
+        self.var.update()
+        self.accum = self.var.get()*(1-self.beta) + self.beta*self.accum
+        self.betat *= self.beta
+        print(self.betat)
+
+
 class PPRVariable:
     def __init__(self, value, update_rule="PPR", balance=0.5, is_training=False):
         self.neighbors = dict()
@@ -129,7 +236,7 @@ class PPRVariable:
         elif update_rule=="PR":
             self.update_rule = lambda n,p: n
         elif update_rule=="FDiff":
-            self.update_rule = lambda n,p: n*0.9+0.1*p if not self.is_training else p
+            self.update_rule = lambda n,p: n if not self.is_training else p
         elif update_rule=="AVG":
             self.update_rule = lambda n,p: (n*len(self.neighbors)**(1-self.balance)+p) / (len(self.neighbors)+1)**(1-self.balance)
         elif update_rule=="CHOCO":
@@ -139,7 +246,8 @@ class PPRVariable:
         self.set(value)
 
     def set(self, value):
-        self.neighbors[self] = value
+        self.neighbors[self] = 0
+        self.neighbors[self] = value / len(self.neighbors)**self.balance
         self.personalization = value
         self.update()
 
