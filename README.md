@@ -62,5 +62,13 @@ Then, devices are instantiated given desired setting preferences.
 
 ## :notebook: Citation
 ```
-TBD
+@article{krasanakis2022p2pgnn,
+  title={p2pgnn: A decentralized graph neural network for node classification in peer-to-peer networks},
+  author={Krasanakis, Emmanouil and Papadopoulos, Symeon and Kompatsiaris, Ioannis},
+  journal={IEEE Access},
+  volume={10},
+  pages={34755--34765},
+  year={2022},
+  publisher={IEEE}
+}
 ```
