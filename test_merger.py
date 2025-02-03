@@ -12,7 +12,9 @@ std = 0.1
 
 vars = {
     v: (
-        RandomMergeVariable(mean - std + random.random() * std * 2, is_training=True)
+        RandomMergeVariable(
+            mean - std * 2 + random.random() * std * 4, is_training=True
+        )
         if random.random() < 0.2
         else RandomMergeVariable(0, is_training=False)
     )

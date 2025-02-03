@@ -3,9 +3,7 @@ import learning.nn
 import learning.optimizers
 import numpy as np
 
-learning.optimizers.Variable.datatype = (
-    np.float16
-)  # change this to float64 if you have enough memory
+learning.optimizers.Variable.datatype = np.float16  # change to float64 on enough memory
 
 
 def experiment(
