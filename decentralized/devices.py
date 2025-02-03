@@ -1,7 +1,7 @@
 import numpy as np
 from learning.optimizers import Variable
 from decentralized.abstracts import Device, DecentralizedVariable
-from decentralized.mergers import AvgMerge, PPRVariable, Smoothen, DecoupleNormalization
+from decentralized.mergers import AvgMerge, PPRVariable, Smoothen
 import random
 
 
@@ -14,13 +14,12 @@ def mse(x1, x2):
 
 
 class GossipDevice(Device):
-    def __init__(self, node, predictor, features, labels, gossip_merge=AvgMerge, train_steps=1):
+    def __init__(self, node, predictor, features, labels, gossip_merge=AvgMerge, train_steps=1, smoother = lambda x: x):
         super().__init__()
         self.node = node
         self.labels = labels
         self.features = features
         self.predictor = predictor
-        smoother = Smoothen#lambda x: x
         self._is_training = self.labels.sum() != 0
         self.ML_predictions = self.predictor(self.features) * (1 if gossip_merge is not None else 0)
         self.errors = self.append(smoother(PPRVariable(labels, "FDiff", balance=1, is_training=self._is_training)))

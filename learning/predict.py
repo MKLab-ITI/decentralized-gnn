@@ -17,7 +17,7 @@ def train_or_load_MLP(name, features, onehot_labels, num_classes, training, vali
         for epoch in range(2000):
             for u in training:
                 pred = f(features[u], is_training=True)
-                f.backpropagate(onehot_labels[u])
+                f.backpropagate(onehot_labels[u])  # softmax uses the target output not the derivative
             f.learner_end_batch()
             loss = -np.sum(np.log(f(features[u])+1.E-12)*onehot_labels[u]+(1-onehot_labels[u])*np.log(1+1.E-12-f(features[u])) for u in validation).sum()
             if loss < best_loss:

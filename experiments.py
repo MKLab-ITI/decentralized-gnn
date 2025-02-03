@@ -11,6 +11,7 @@ def experiment(dataset,
                classifier=learning.nn.MLP,
                pretrained=False,
                gossip_pull=False,
+               smoother=decentralized.mergers.NoSmooth,
                seed=0):
     measures = {"acc": list(), "base_acc": list()}
     network, test_labels = decentralized.simulation.create_network(dataset, device_type,
@@ -19,6 +20,7 @@ def experiment(dataset,
                                                                    gossip_merge=gossip_merge,
                                                                    gossip_pull=gossip_pull,
                                                                    seed=seed,
+                                                                   smoother=smoother,
                                                                    min_communication_rate=0,
                                                                    max_communication_rate=0.1)
     for epoch in range(1000):
@@ -35,10 +37,11 @@ def experiment(dataset,
 for dataset in ["citeseer", "cora", "pubmed"]:
     setting = {"dataset": dataset,
                "device_type": decentralized.devices.GossipDevice,
-               "gossip_merge": decentralized.mergers.AvgMerge,
+               "gossip_merge": decentralized.mergers.PPRVariable,
                "classifier": learning.nn.MLP,
                "pretrained": False,
-               "gossip_pull": False}
+               "gossip_pull": False,
+               "smoother": decentralized.mergers.NoSmooth}
     print(setting)
     measures = {"acc": list(), "base_acc": list()}
     for repetition in range(1):

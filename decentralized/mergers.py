@@ -1,5 +1,4 @@
 import numpy as np
-import random
 
 
 class AvgMerge:
@@ -196,6 +195,8 @@ class DecoupleNormalization:
     def update(self):
         self.var.update()
 
+
+NoSmooth = lambda x: x
 
 class Smoothen:
     def __init__(self, var):

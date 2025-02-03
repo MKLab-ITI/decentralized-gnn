@@ -91,7 +91,7 @@ def xavier(d0, d1, he=2):
 
 
 class Tautology(Derivable):
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
         pass
 
     def __call__(self, features, is_training=False):
