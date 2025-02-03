@@ -14,7 +14,11 @@ class Gradient:
         self.learning_rate = learning_rate
 
     def update(self, variable: Variable, error):
-        variable.value = variable.value - error*self.learning_rate - variable.value*variable.regularization*self.learning_rate
+        variable.value = (
+            variable.value
+            - error * self.learning_rate
+            - variable.value * variable.regularization * self.learning_rate
+        )
 
 
 class CenteredOptimizer:
@@ -27,7 +31,7 @@ class CenteredOptimizer:
 
     def update(self, variable: Variable, error):
         prev_center = self.center.get(variable, 0)
-        error = error - 0.5*(variable.value-prev_center)
+        error = error - 0.5 * (variable.value - prev_center)
         self.base.update(variable, error)
         self.center[variable] = variable.value
 
@@ -38,7 +42,7 @@ class CenteredOptimizer:
 
 
 class Adam:
-    def __init__(self, learning_rate=0.01, beta1=0.9, beta2=0.999, epsilon=1.E-7):
+    def __init__(self, learning_rate=0.01, beta1=0.9, beta2=0.999, epsilon=1.0e-7):
         self.learning_rate = learning_rate
         self.beta1 = beta1
         self.beta2 = beta2
@@ -56,12 +60,32 @@ class Adam:
             self.beta2t[variable] = 1
         self.beta1t[variable] *= self.beta1
         self.beta2t[variable] *= self.beta2
-        error = error + variable.value*variable.regularization
-        self.mt[variable] = np.array(self.beta1*self.mt[variable] + (1-self.beta1)*error, dtype=Variable.datatype)
-        self.vt[variable] = np.array(self.beta2*self.vt[variable] + (1-self.beta2)*np.square(error), dtype=Variable.datatype)
-        learning_ratet = self.learning_rate * (1-self.beta2t[variable])**0.5/(1-self.beta1t[variable])
-        epsilont = self.epsilon * (1-self.beta1t[variable]) / (1-self.beta2t[variable])**0.5
-        variable.value = np.array(variable.value - learning_ratet*self.mt[variable] / (epsilont+np.sqrt(self.vt[variable])), dtype=Variable.datatype)
+        error = error + variable.value * variable.regularization
+        self.mt[variable] = np.array(
+            self.beta1 * self.mt[variable] + (1 - self.beta1) * error,
+            dtype=Variable.datatype,
+        )
+        self.vt[variable] = np.array(
+            self.beta2 * self.vt[variable] + (1 - self.beta2) * np.square(error),
+            dtype=Variable.datatype,
+        )
+        learning_ratet = (
+            self.learning_rate
+            * (1 - self.beta2t[variable]) ** 0.5
+            / (1 - self.beta1t[variable])
+        )
+        epsilont = (
+            self.epsilon
+            * (1 - self.beta1t[variable])
+            / (1 - self.beta2t[variable]) ** 0.5
+        )
+        variable.value = np.array(
+            variable.value
+            - learning_ratet
+            * self.mt[variable]
+            / (epsilont + np.sqrt(self.vt[variable])),
+            dtype=Variable.datatype,
+        )
 
 
 class BatchOptimizer:
@@ -74,7 +98,9 @@ class BatchOptimizer:
         self.sample_weight = weight
 
     def update(self, variable: Variable, error):
-        self.accumulation[variable] = self.accumulation.get(variable, 0) + error * self.sample_weight
+        self.accumulation[variable] = (
+            self.accumulation.get(variable, 0) + error * self.sample_weight
+        )
 
     def end_batch(self):
         for variable in self.accumulation:

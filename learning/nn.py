@@ -33,10 +33,18 @@ class Derivable(object):
 
 
 class Affine(Derivable):
-    def __init__(self, num_inputs, num_outputs, learner, bias=False, regularization=0.0005):
+    def __init__(
+        self, num_inputs, num_outputs, learner, bias=False, regularization=0.0005
+    ):
         super().__init__(learner)
-        self.W = Variable(xavier(num_outputs, num_inputs), regularization=regularization)
-        self.b = Variable(np.zeros(num_outputs), regularization=regularization) if bias else False
+        self.W = Variable(
+            xavier(num_outputs, num_inputs), regularization=regularization
+        )
+        self.b = (
+            Variable(np.zeros(num_outputs), regularization=regularization)
+            if bias
+            else False
+        )
 
     def get_vars(self):
         return [self.W, self.b] if self.b else [self.W]
@@ -57,10 +65,10 @@ class Affine(Derivable):
 
 class Relu(Derivable):
     def _forward(self, inputs, is_training=False):
-        return inputs*(inputs>0)
+        return inputs * (inputs > 0)
 
     def _backward(self, inputs, value, error):
-        return error*(inputs>0)
+        return error * (inputs > 0)
 
 
 class SoftmaxCE(Derivable):
@@ -71,31 +79,40 @@ class SoftmaxCE(Derivable):
     def _backward(self, inputs, value, desired_output):
         SM = value.reshape((-1, 1))
         softmax_jacobian = np.diagflat(value) - np.dot(SM, SM.T)
-        derivative = np.matmul(-desired_output / (1.E-8 + value) + (1 - desired_output) / (1 - value + 1.E-8), softmax_jacobian)
+        derivative = np.matmul(
+            -desired_output / (1.0e-8 + value)
+            + (1 - desired_output) / (1 - value + 1.0e-8),
+            softmax_jacobian,
+        )
         return derivative
+
 
 class Dropout(Derivable):
     def __init__(self, dropout=0.5):
         self.dropout = dropout
 
     def _forward(self, inputs, is_training=False):
-        self.mask = np.random.binomial(1, self.dropout, size=inputs.shape)/self.dropout if is_training else 1
-        return inputs*self.mask
+        self.mask = (
+            np.random.binomial(1, self.dropout, size=inputs.shape) / self.dropout
+            if is_training
+            else 1
+        )
+        return inputs * self.mask
 
     def _backward(self, inputs, value, error):
-        return error*self.mask
+        return error * self.mask
 
 
 def xavier(d0, d1, he=2):
-    return (np.random.rand(d0, d1)*2-1)*(6./(d0+d1))**0.5 / he
+    return (np.random.rand(d0, d1) * 2 - 1) * (6.0 / (d0 + d1)) ** 0.5 / he
 
 
 class Tautology(Derivable):
     def __init__(self, *args, **kwargs):
-        pass
+        self.variables = []
 
     def __call__(self, features, is_training=False):
-        return features
+        return np.array(features, Variable.datatype)
 
     def backpropagate(self, derivative):
         pass
@@ -111,7 +128,7 @@ class LR(Derivable):
         super().__init__(learner)
         self.variables = list()
         self.layers = list()
-        #self.append(Dropout(0.5))
+        # self.append(Dropout(0.5))
         self.append(Affine(num_inputs, num_outputs, learner))
         self.append(SoftmaxCE(learner))
 
@@ -149,7 +166,7 @@ class MLP(Derivable):
         np.random.seed(0)
         if learner is None:
             learner = BatchOptimizer(Adam())
-            #learner = CenteredOptimizer(learner)
+            # learner = CenteredOptimizer(learner)
         super().__init__(learner)
         hidden_units = 64
         self.variables = list()
@@ -188,4 +205,3 @@ class MLP(Derivable):
         self.learner.end_batch()
         for layer in self.layers[::-1]:
             layer.clear_gradients()
-

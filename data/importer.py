@@ -4,6 +4,7 @@ import torch
 import networkx as nx
 from torch_geometric.datasets import Planetoid
 
+
 def load(dataset, verbose=True, radius=None):
     data_path = f"data/{dataset}.pickle"
 
@@ -13,7 +14,11 @@ def load(dataset, verbose=True, radius=None):
         dataset_loader = Planetoid(root="data", name=dataset)
         data = dataset_loader[0]
 
-        G = nx.DiGraph(zip(data.edge_index[0].numpy().tolist(), data.edge_index[1].numpy().tolist()))
+        G = nx.DiGraph(
+            zip(
+                data.edge_index[0].numpy().tolist(), data.edge_index[1].numpy().tolist()
+            )
+        )
         features = dict(zip(range(data.x.shape[0]), data.x.numpy().tolist()))
         labels = dict(zip(range(data.y.shape[0]), data.y.numpy().tolist()))
         training = set(torch.where(data.train_mask)[0].numpy().tolist())
