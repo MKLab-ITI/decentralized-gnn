@@ -2,10 +2,7 @@ import random
 from data import importer
 from learning.predict import train_or_load_MLP, onehot
 from learning.nn import MLP
-from decentralized.mergers import Smooth
 import concurrent.futures
-import threading
-from tqdm import tqdm
 
 
 def create_network(dataset, device_type, classifier=MLP, pretrained=False, seed=0, gossip_pull=False, **kwargs):

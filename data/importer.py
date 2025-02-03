@@ -1,30 +1,33 @@
-import numpy as np
-import networkx as nx
-import os.path
+import os
 import pickle
-
+import torch
+import networkx as nx
+from torch_geometric.datasets import Planetoid
 
 def load(dataset, verbose=True, radius=None):
-    if os.path.exists("data/"+dataset+".pickle"):
-        ret = pickle.load(open("data/"+dataset+".pickle", "rb"))
+    data_path = f"data/{dataset}.pickle"
+
+    if os.path.exists(data_path):
+        ret = pickle.load(open(data_path, "rb"))
     else:
-        import dgl.data
-        dataloader = {"cora": dgl.data.CoraGraphDataset, "citeseer": dgl.data.CiteseerGraphDataset, "pubmed": dgl.data.PubmedGraphDataset}
-        data = dataloader[dataset](verbose=False)[0]
-        G = nx.DiGraph(zip(data.edges()[0].numpy().tolist(), data.edges()[1].numpy().tolist()))
-        features = dict(zip(data.nodes().numpy().tolist(), data.ndata['feat'].numpy().tolist()))
-        labels = dict(zip(data.nodes().numpy().tolist(), data.ndata['label'].numpy().tolist()))
-        training = np.where(data.ndata['train_mask'])[0].tolist()
-        validation = np.where(data.ndata['val_mask'])[0].tolist()
-        test = np.where(data.ndata['test_mask'])[0].tolist()
-        ret = G, features, labels, set(training), set(validation), set(test)
-        pickle.dump(ret, open("data/"+dataset+".pickle", "wb"))
+        dataset_loader = Planetoid(root="data", name=dataset)
+        data = dataset_loader[0]
+
+        G = nx.DiGraph(zip(data.edge_index[0].numpy().tolist(), data.edge_index[1].numpy().tolist()))
+        features = dict(zip(range(data.x.shape[0]), data.x.numpy().tolist()))
+        labels = dict(zip(range(data.y.shape[0]), data.y.numpy().tolist()))
+        training = set(torch.where(data.train_mask)[0].numpy().tolist())
+        validation = set(torch.where(data.val_mask)[0].numpy().tolist())
+        test = set(torch.where(data.test_mask)[0].numpy().tolist())
+
+        ret = G, features, labels, training, validation, test
+        pickle.dump(ret, open(data_path, "wb"))
 
     if radius is not None:
         G, features, labels, training, validation, test = ret
         G = nx.ego_graph(G, list(G)[1], radius=radius)
         nodes = set(G)
-        ret = G, features, labels, set([u for u in training if u in nodes]), set([u for u in validation if u in nodes]), set([u for u in test if u in nodes])
+        ret = G, features, labels, training & nodes, validation & nodes, test & nodes
 
     if verbose:
         print("===== Dataset =====")
@@ -34,4 +37,5 @@ def load(dataset, verbose=True, radius=None):
         print("Train:", len(ret[3]))
         print("Valid:", len(ret[4]))
         print("Test :", len(ret[5]))
+
     return ret

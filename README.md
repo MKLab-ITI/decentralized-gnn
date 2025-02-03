@@ -4,6 +4,11 @@ for classification of peer-to-peer nodes. Developed code supports the publicatio
 *p2pGNN: A Decentralized Graph Neural Network for Node Classification in Peer-to-Peer Networks*.
 
 ## :zap: Quick Start
+
+Clone the repository and install all dependencies with `pip install -r requirements.txt`.
+This will also install the infrastructure needed by the dgl library, but
+that library is used only for automatically downloading and preprocessing data.
+
 To generate a local instance of a decentralized learning device:
 ```python
 from decentralized.devices import GossipDevice
@@ -16,13 +21,13 @@ predictor = MLP(features.shape[0], labels.shape[0])  # or load a pretrained mode
 device = GossipDevice(node, predictor, features, labels, gossip_merge=SlowMerge)
 ```
 
-In this code, the type of the device (`GossipDevice`)and the variable merge protocol 
+In this code, the type of the device (`GossipDevice`) and the variable merge protocol 
 (`SlowMerge`) work together to define a decentralized learning seting for 
 a Graph Neural Network that runs on and takes account of unstructured peer-to-peer links
 of uncertain availability.
 
-Then, when possible (e.g. at worst, whenever devices send messages to the others for
-other reasons) perform the following information exchange scheme between linked devices 
+Then, whenever possible (e.g. at worst, whenever devices send messages to the others for
+other reasons) perform the following information exchange between linked devices 
 `u` and `v`:
 
 ```python
