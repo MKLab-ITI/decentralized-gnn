@@ -2,8 +2,10 @@ import numpy as np
 
 
 class Variable:
+    datatype = np.float64
+
     def __init__(self, value, regularization=0.005):
-        self.value = value
+        self.value = np.array(value, dtype=Variable.datatype)
         self.regularization = regularization
 
 
@@ -55,11 +57,11 @@ class Adam:
         self.beta1t[variable] *= self.beta1
         self.beta2t[variable] *= self.beta2
         error = error + variable.value*variable.regularization
-        self.mt[variable] = self.beta1*self.mt[variable] + (1-self.beta1)*error
-        self.vt[variable] = self.beta2*self.vt[variable] + (1-self.beta2)*np.square(error)
+        self.mt[variable] = np.array(self.beta1*self.mt[variable] + (1-self.beta1)*error, dtype=Variable.datatype)
+        self.vt[variable] = np.array(self.beta2*self.vt[variable] + (1-self.beta2)*np.square(error), dtype=Variable.datatype)
         learning_ratet = self.learning_rate * (1-self.beta2t[variable])**0.5/(1-self.beta1t[variable])
         epsilont = self.epsilon * (1-self.beta1t[variable]) / (1-self.beta2t[variable])**0.5
-        variable.value = variable.value - learning_ratet*self.mt[variable] / (epsilont+np.sqrt(self.vt[variable]))
+        variable.value = np.array(variable.value - learning_ratet*self.mt[variable] / (epsilont+np.sqrt(self.vt[variable])), dtype=Variable.datatype)
 
 
 class BatchOptimizer:

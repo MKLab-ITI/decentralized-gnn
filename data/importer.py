@@ -20,7 +20,11 @@ def load(dataset, verbose=True, radius=None):
         validation = set(torch.where(data.val_mask)[0].numpy().tolist())
         test = set(torch.where(data.test_mask)[0].numpy().tolist())
 
+        validation = [u for u in validation if u in features and u in labels and u in G]
+        test = [u for u in test if u in features and u in labels and u in G]
+        training = [u for u in training if u in features and u in labels and u in G]
         ret = G, features, labels, training, validation, test
+
         pickle.dump(ret, open(data_path, "wb"))
 
     if radius is not None:

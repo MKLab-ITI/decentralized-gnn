@@ -1,5 +1,5 @@
 numpy
 networkx
 tqdm
-pandas
-torch_geometrics
+torch
+torch_geometric

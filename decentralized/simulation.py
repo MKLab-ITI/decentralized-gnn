@@ -5,7 +5,8 @@ from learning.nn import MLP
 import concurrent.futures
 
 
-def create_network(dataset, device_type, classifier=MLP, pretrained=False, seed=0, gossip_pull=False, **kwargs):
+def create_network(dataset, device_type, classifier=MLP, pretrained=False, seed=0, gossip_pull=False,
+                   min_communication_rate=0, max_communication_rate=0.1, **kwargs):
     graph, features, labels, training, validation, test = importer.load(dataset, verbose=False)
     #training, test = test, training
     num_classes = len(set(labels.values()))
@@ -34,7 +35,9 @@ def create_network(dataset, device_type, classifier=MLP, pretrained=False, seed=
                       lambda u: device_type(u, init_classifier(u), features[u], training_labels[u],
                                             train_steps=1 if u in training else 0, **kwargs),
                       seed=seed,
-                      gossip_pull=gossip_pull)
+                      gossip_pull=gossip_pull,
+                      min_communication_rate=min_communication_rate,
+                      max_communication_rate=max_communication_rate)
     test_labels = {u: labels[u] for u in test}
     del graph
     del features
@@ -45,10 +48,11 @@ def create_network(dataset, device_type, classifier=MLP, pretrained=False, seed=
 
 
 class Network:
-    def __init__(self, graph, init_device, seed=0, gossip_pull=False):
+    def __init__(self, graph, init_device, seed=0, gossip_pull=False, min_communication_rate=0, max_communication_rate=0.1):
         self.init_device = init_device
         random.seed(seed)
-        self.neighbors = {u: {v: random.random()*0.1 for v in graph.neighbors(u) if u != v} for u in graph}
+        self.neighbors = {u: {v: random.random()*(max_communication_rate-min_communication_rate)+min_communication_rate
+                              for v in graph.neighbors(u) if u != v} for u in graph}
         self.devices = {u: init_device(u) for u in graph}
         self.gossip_pull = gossip_pull
         self.device_list = list(self.devices.values()) # values of self.devices stored as a list

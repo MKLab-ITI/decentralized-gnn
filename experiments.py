@@ -1,7 +1,9 @@
 import decentralized
 import learning.nn
+import learning.optimizers
 import numpy as np
 
+learning.optimizers.Variable.datatype = np.float16 # change this to float64 if you have enough memory
 
 def experiment(dataset,
                device_type=decentralized.devices.GossipDevice,
@@ -16,7 +18,9 @@ def experiment(dataset,
                                                                    classifier=classifier,
                                                                    gossip_merge=gossip_merge,
                                                                    gossip_pull=gossip_pull,
-                                                                   seed=seed)
+                                                                   seed=seed,
+                                                                   min_communication_rate=0,
+                                                                   max_communication_rate=0.1)
     for epoch in range(1000):
         network.round()
         if epoch % 10 == 0:
